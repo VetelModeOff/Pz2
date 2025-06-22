@@ -1,0 +1,91 @@
+import hashlib
+from datetime import datetime
+
+class User:
+    def __init__(self, username, password, is_active=True):
+        self.username = username
+        self.password_hash = self._hash_password(password)
+        self.is_active = is_active
+
+    def _hash_password(self, password):
+        return hashlib.sha256(password.encode()).hexdigest()
+
+    def verify_password(self, password):
+        return self.password_hash == self._hash_password(password)
+
+    def __str__(self):
+        return f"User(username={self.username}, active={self.is_active})"
+
+class Administrator(User):
+    def __init__(self, username, password, is_active=True, permissions=None):
+        super().__init__(username, password, is_active)
+        self.permissions = permissions if permissions else []
+
+    def add_permission(self, permission):
+        if permission not in self.permissions:
+            self.permissions.append(permission)
+
+    def __str__(self):
+        return f"Administrator(username={self.username}, permissions={self.permissions})"
+
+
+class RegularUser(User):
+    def __init__(self, username, password, is_active=True):
+        super().__init__(username, password, is_active)
+        self.last_login = None
+
+    def update_login_time(self):
+        self.last_login = datetime.now()
+
+    def __str__(self):
+        return f"RegularUser(username={self.username}, last_login={self.last_login})"
+
+class GuestUser(User):
+    def __init__(self, username="loki", password="", is_active=True):
+        super().__init__(username, password, is_active)
+        self.access_level = "read-only"
+
+    def __str__(self):
+        return f"GuestUser(username={self.username}, access_level={self.access_level})"
+
+class AccessControl:
+    def __init__(self):
+        self.users = {}
+
+    def add_user(self, user):
+        if user.username in self.users:
+            print(f"Користувач '{user.username}' вже існує.")
+        else:
+            self.users[user.username] = user
+            print(f"Користувача '{user.username}' додано до системи.")
+
+    def authenticate_user(self, username, password):
+        user = self.users.get(username)
+        if user and user.verify_password(password) and user.is_active:
+            print(f"Аутентифікація успішна для '{username}'")
+            if isinstance(user, RegularUser):
+                user.update_login_time()
+            return user
+        else:
+            print(f"Аутентифікація не вдалася для '{username}'")
+            return None
+
+if __name__ == '__main__':
+    ac = AccessControl()
+
+    admin = Administrator("addy", "admin123", permissions=["manage_users", "view_logs"])
+    user = RegularUser("johnni", "pass456")
+    guest = GuestUser()
+
+    ac.add_user(admin)
+    ac.add_user(user)
+    ac.add_user(guest)
+
+    print("Перевірка автентифікації:")
+    ac.authenticate_user("johnni", "pass456")
+    ac.authenticate_user("addy", "wrong_pass")
+    ac.authenticate_user("loki", "")
+
+    print("Список користувачів у системі:")
+    for uname, user_obj in ac.users.items():
+        print(f" - {user_obj}")
